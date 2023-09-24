@@ -1,0 +1,153 @@
+---
+title: "Tutorial 1"
+output: html_document
+date: '2023-09-11'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Polynomial Regression
+
+Seen the standard linear regression model in class by **minimizing least squares** as well as **maximizing maximum likelihood** (both yield the same estimate for the estimated coefficents $\hat{\beta}$).
+
+Linearity assumption between the predictors and response is sometimes not reasonable, in which cases the predictive power of the linear model is poor.
+
+The advantage of linear models is that they are **highly interpretable**. How can we extend linear models when the response is not a linear function of the predictors?
+
+One approach is to perform **polynomial regression**. It extends the linear model by adding extra predictors which are obtained by raising the original predictors to a power in order to obtain a non-linear fit to the data.
+
+Linear regression: $Y_i = \beta_0 + \beta_1 x_i + \epsilon_i$
+
+Polynomial regression: $Y_i = \beta_0 + \beta_1 \mathbf{x_i} + \beta_2 \mathbf{x_i^2} + \ldots + \beta_d \mathbf{x_i^d} + \epsilon_i$
+
+Compare the above 2 models. The first one provides a linear fit to the data and has fewer predictors. The second one allows **non-linear fits** and has **more predictors**. However, note that the polynomial regression model is still **linear in the predictors** $x, x^2, x^3$, though not linear in the original predictor $x$. This provides a way to improve model fits for non-linear data while also retaining the benefits of linear models (**interpretability, computational ease in fitting models, hypothesis testing**).
+
+**Increasing d increases the model complexity as well as the non-linearity of the fitted model**. Estimating the coefficients is as straightforward as the linear regression case by treating $x_i, x_i^2, \ldots, x_i^d$ as the predictors. Generally, having a large value of d will lead to **increased variance** of the model fits. Recall bias-variance tradeoff and our goal to choose an appropriate d which minimizes MSE.
+
+Let us look at some synthetic data and analyze the effect of d on model fit in terms of bias, variance and MSE.
+
+## Step 1: Generate and visualize data
+$y_i = 1 + 0.3x_i + 0.75x_i^2 + \epsilon_i$ where $\epsilon_i \sim N(0,1)$
+```{r}
+library(tidyverse)
+# library(caret)
+library(ggplot2)
+
+# Generate data
+set.seed(100)
+df <- data.frame(x = runif(100, -3, 3), y=1)
+df$y <- df$y + 0.3*df$x + 0.75*df$x^2 + rnorm(n=100, mean=0, sd=1)
+
+# Visualize data
+ggplot(df, aes(x=x, y=y)) +
+  geom_point()
+```
+
+## Step 2: Split data into training and test
+```{r}
+# idx contains sample indices to be part of training data
+idx <- sample(x = 1:nrow(df), size = 70, replace = FALSE)
+train_data  <- df[idx, ]
+test_data   <- df[-idx, ]
+train_data
+test_data
+```
+
+You can also use the **caret** package to partition data in to training and testin data using the function **createDataPartition**. This package also has functions like **trainControl** which support k-fold cross validation (you will see it in future lectures).
+
+## Step 3: Build the model
+The **poly** function in the **stats** package allows to evaluate the polynomials upto degree d at data points x by using the command **poly(x, d, raw = TRUE)**. The output is a matrix with number of rows equal to the lengthof x and the number of columns equal to d. Setting raw=False would force R to evaluate the orthogonal polynomials instead of just the raw ones. See how the outputs vary in the 2 cases below.
+
+```{r}
+poly(c(1,2,3), 2, raw = TRUE)
+poly(c(1,2,3), 2, raw = FALSE)
+```
+
+```{r}
+# Build the model with d=2
+model <- lm(y ~ poly(x, 2, raw = TRUE), data = train_data)
+# Look at the summary of the model fit
+summary(model)
+```
+
+## Step 4: Look at model diagnostics and fits
+```{r}
+# Model residuals
+plot(model$fit, model$res, xlab="Fitted",ylab="Residuals", main="Residuals vs fitted values")
+```
+```{r}
+# Make predictions for training data
+train_fit <- model %>% predict(train_data)
+# plot(train_data$x, train_fit, xlab="Predictor",ylab="Response", main="Residuals vs fitted values")
+ggplot(data = NULL, aes(x = x, y = y)) +
+  geom_point(data = train_data, color= "blue") +
+  geom_point(data = test_data, color= "green") +
+  stat_smooth(data = train_data, method = "lm", formula = y ~ poly(x, 2, raw = TRUE), se=FALSE, color = "red")
+```
+
+```{r}
+# Make predictions for testing data
+test_fit <- model %>% predict(test_data)
+ggplot(data = test_data, aes(x = x, y = y)) +
+  geom_point(color= "green") +
+  stat_smooth(data = train_data, method = "lm", formula = y ~ poly(x, 2, raw = TRUE), se=FALSE, color = "red")
+```
+
+## Step 5: Compare model fits for different values of d
+```{r}
+for (d in 1:15){
+  g <- ggplot(data = NULL, aes(x = x, y = y)) +
+  geom_point(data = train_data, color= "blue") +
+  geom_point(data = test_data, color= "green") +
+  stat_smooth(data = train_data, method = "lm", formula = y ~ poly(x, d, raw = TRUE),                se=FALSE, color = "red") +
+  ggtitle(paste("d=",d))
+  print(g)
+}
+
+```
+
+From the plots above, we can conclude that increasing d increases the model complexity. The fitted curves get more and more wriggly to provide a better fir to the data. For d=1, we have an underfitting scenario (trying to use a straight line to fit quadratic data) whereas higher values of d lead to overfitting. 
+
+This causes the bias to decrease on increasing d whereas the variance increases. The variance of the fitted model is larger for high values of d. What we mean by this is that if we changed some of the data points in the training data, the fitted model would change drastically. Try to imagine how the fitted model would look like for d=15 when the 2 leftmost points are removed.
+
+## Step 6: Compare MSE for different values of d
+```{r}
+mse_train <- c()
+mse_test <- c()
+for (d in 1:15){
+  model <- lm(y ~ poly(x, d, raw = TRUE), data = train_data)
+  train_fit <- model %>% predict(train_data)
+  train_mse <- mean((train_data$y-train_fit)^2)
+  mse_train[d] <- train_mse
+  test_fit <- model %>% predict(test_data)
+  test_mse <- mean((test_data$y-test_fit)^2)
+  mse_test <- append(mse_test, test_mse)
+}
+mse_train
+mse_test
+```
+
+```{r}
+mse <- data.frame(
+  x = 1:length(mse_train),
+  y1 = mse_train,
+  y2 = mse_test
+)
+mse
+
+ggplot(mse, aes(x = x)) +
+  geom_line(aes(y = y1, color = "Train"), linetype = "solid") +
+  geom_line(aes(y = y2, color = "Test"), linetype = "solid") +
+  labs(
+    title = "MSE for different values of d",
+    x = "Degree of polynomial",
+    y = "MSE"
+  ) +
+  scale_color_manual(values = c("Train" = "blue", "Test" = "red")) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+```
+
+Generally, train MSE is lower than test MSE, but this may not be the case always.

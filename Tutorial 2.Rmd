@@ -1,0 +1,155 @@
+---
+title: "Tutorial 2"
+output: html_document
+date: "2023-09-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Multicollinearity
+
+Multicollinearity exists whenever **two or more of the predictors in a regression model are moderately or highly correlated**. Multicollinearity happens more often than not in such observational studies. And, unfortunately, regression analyses most often take place on data obtained from observational studies.
+
+We will today look at blood pressure data on 20 individuals with high blood pressure. Below are the variables in the dataset:
+* blood pressure (response = BP, in mm Hg)
+* age (in years)
+* weight (in kg)
+* body surface area (in sq m)
+* duration of hypertension (in years)
+* basal pulse (in beats per minute)
+* stress index 
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(car)
+```
+
+### Load the data
+```{r pressure, echo=FALSE}
+data = read.csv("bloodpress.csv")
+plot(data)
+```
+These scatterplots allow us to investigate the various marginal relationships between the response BP and the predictors. Blood pressure appears to be related fairly strongly to Weight and BSA, and hardly related at all to the Stress level. 
+
+The matrix plots also allow us to investigate whether or not relationships exist among the predictors. For example, Weight and BSA appear to be strongly related, while Stress and BSA appear to be hardly related at all.
+
+Let us look at the correlation matrix now:
+
+```{r}
+cor(data)
+```
+The correlation matrix provides further evidence of the above hpothesis. Blood pressure appears to be related fairly strongly to Weight (r = 0.950) and BSA (r = 0.866), and hardly related at all to Stress level (r = 0.164). And, Weight and BSA appear to be strongly related (r = 0.875), while Stress and BSA appear to be hardly related at all (r = 0.018). The high correlation among some of the predictors suggests that data-based multicollinearity exists.
+
+```{r}
+X <- data[,-1]
+Y <- data[,1]
+gram_matrix <- t(X) %*% as.matrix(X)
+# data is a data frame and not a matrix, hence the as.matrix command to convert it to a matrix. By default, taking the transpose via t() converts it to a matrix
+gram_matrix
+```
+```{r}
+det(t(X) %*% as.matrix(X))
+eigen(t(X) %*% as.matrix(X))$values
+kappa(X) # condition number of design matrix
+```
+
+In this case, the gram matrix is invertible, i.e. non-singular as determinant is positive and eigen values are non-zero. Hence, it may be possible to use the expression for $\hat{\beta}$ from OLS to estimate the coefficients. However, since $Var(\hat{\beta}) = \sigma^2 (X^T X)^{-1}$, the variances will blow up when $X^T X$ is singular. If the gram matrix isn’t exactly singular, but is close to being non-invertible, the variances of the estimates will become huge. Also, since the condition number is large (<30), it indicates multicollinearity.
+
+```{r}
+beta_hat <- solve(t(X) %*% as.matrix(X)) %*% t(X) %*% as.matrix(Y)
+beta_hat
+```
+
+## Effects of multicollinearity
+
+### Begin with the case of nearly uncorrelated predictors
+We have seen that the predictors BSA and stress are hardly correlated. So let us first fit models using just one of these predictors at a time followed by using both together.
+
+```{r}
+# Build the model with BSA
+model <- lm(BP ~ BSA, data = data)
+# Look at the summary of the model fit
+summary(model)
+```
+
+```{r}
+# Build the model with stress
+model <- lm(BP ~ Stress, data = data)
+# Look at the summary of the model fit
+summary(model)
+```
+
+```{r}
+# Build the model with BSA and stress
+model <- lm(BP ~ BSA + Stress, data = data)
+# Look at the summary of the model fit
+summary(model)
+```
+
+We observe that we don't get identical, but very similar slope estimates regardless of the predictors in the model when the predictors are nearly uncorrelated. Stress was almost uncorrelated to BP, hence the low values of $R^2$ as well as a higher residual standard error. Note that adding stress along with BSA did not improve $R^2$ or residual standard error by much. 
+
+### Look at the case of highly correlated predictors
+Recall that there appears to be not only a strong relationship between y = BP and Weight (r = 0.950) and a strong relationship between y = BP and the predictor BSA (r = 0.866), but also a strong relationship between the two predictors Weight and BSA (r = 0.875). It is not surprising that a person's weight and body surface area are highly correlated.
+
+Again let us first fit models using just one of these predictors at a time followed by using both together.
+
+```{r}
+# Build the model with BSA 
+model <- lm(BP ~ BSA, data = data)
+# Look at the summary of the model fit
+summary(model)
+```
+
+```{r}
+# Build the model with weight
+model <- lm(BP ~ Weight, data = data)
+# Look at the summary of the model fit
+summary(model)
+```
+
+```{r}
+# Build the model with BSA and weight
+model <- lm(BP ~ BSA + Weight, data = data)
+# Look at the summary of the model fit
+summary(model)
+```
+
+Observations:
+* Estimated coefficient of BSA varies drastically in the first (34.4) vs the third model (5.83). This means that the estimated coefficient depends on other predictors in the model. Makes the interpretation of that coefficient unreliable.
+
+If BSA is the only predictor included in our model, we claim that for every additional one square meter increase in body surface area (BSA), blood pressure (BP) increases by 34.4 mm Hg. On the other hand, if Weight and BSA are both included in our model, we claim that for every additional one square meter increase in body surface area (BSA), holding weight constant, blood pressure (BP) increases by only 5.83 mm Hg. 
+
+This does not make any sense as two regression analyses lead us to such seemingly different scientific conclusions. The high correlation between the two predictors is what causes the large discrepancy. When interpreting $\hat{beta}_{BSA}= 34.4$ in the model that excludes Weight, keep in mind that when we increase BSA then Weight also increases and both factors are associated with increased blood pressure. However, when interpreting $\hat{beta}_{BSA}= 5.83$ in the model that includes Weight, we keep Weight fixed, so the resulting increase in blood pressure is much smaller.
+
+* When predictor variables are correlated, the precision of the estimated regression coefficients decreases as more predictor variables are added to the model, i.e. the standard errors of the estimated coefficients increase. Compare the standard errors for $\hat{beta}_{BSA}$ (4.69 vs 6.06) and $\hat{beta}_{Weight}$ (0.09 vs 0.19) across the models.
+
+What is the major implication of these increased standard errors? Recall that the standard errors are used in the calculation of the confidence intervals for the slope parameters. That is, increased standard errors of the estimated slopes lead to wider confidence intervals and hence less precise estimates of the slope parameters.
+
+* If we look at the p-values of the t-test to determine the significant coefficients, note that in the first 2 models when we had just one predictor at a time, the coefficients were always significant with small p-values. However, once we include both predictors in the model, the BSA predictor no longer remains significant.
+
+## How to detect multicollinearity
+Some of the common methods used for detecting multicollinearity include:
+
+* The analysis exhibits the signs of multicollinearity — such as estimates of the coefficients varying from model to model.
+* The correlations among pairs of predictor variables are large.
+
+Looking at correlations only among pairs of predictors, however, is limiting. It is possible that the pairwise correlations are small, and yet a linear dependence exists among three or even more variables, for example, $x_3 = 0.1x_2 + 3x_1 + error$. That's why many regression analysts often rely on what is called variance inflation factors (VIF) to help detect multicollinearity.
+
+### Variance inflation factor (VIF)
+The VIF of the $k^{th}$ predictor is defined as $VIF_k = \frac{1}{1-R^2_k}$ where $R^2_k$ is the $R^2$ obtained by regressing the predictor on the remaining predictors. Note that a distinct variance inflation factor exists for each of the predictors in a multiple regression model.
+
+It measures how much the variance of the estimated regression coefficient is "inflated" by the existence of correlation among the predictor variables in the model. A VIF of 1 (minimum possible value) means that there is no correlation between the predictor and the remaining predictor variables, and hence the variance of is not inflated at all. The general rule of thumb is that VIFs exceeding 4 further warrant investigation, while VIFs exceeding 10 are signs of serious multicollinearity requiring correction.
+
+```{r}
+model_full = lm(BP ~ ., data = data)
+summary(model_full)
+```
+
+```{r}
+vif(model_full)
+```
+
+VIFs higher than 4, such as those for Weight, BSA, and Pulse indicate that those variables are highly correlated with the other explanatory variables. Note that BSA and Weight are strongly correlated. Since we know that Weight is so strongly correlated with BP to begin with, we'll want to keep this variable in our model. Moreover, Pulse also appears to exhibit fairly strong marginal correlations with several of the predictors, including Age (r = 0.619), Weight (r = 0.659), and Stress (r = 0.506). Therefore, we could also consider removing the predictor Pulse from the model as well. 
