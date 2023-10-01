@@ -1,30 +1,413 @@
 ---
-title: "Polynomail Regression Assignment 1: STA314"
-output: github_document
+title: "Polynomial Regression Modeling"
+output: html_document
+name: Humza Iqbal
+Student-Number: "1008169321"
+date: '2023-09-29'
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## GitHub Documents
+## Polynomial Regression
 
-This is an R Markdown format used for publishing markdown documents to GitHub. When you click the **Knit** button all R code chunks are run and a markdown file (.md) suitable for publishing to GitHub is generated.
+In this report we will contruct polynomial regression models and assess training and testing error related to these models. For the data we have three distinct, color-coded datasets are available, each generated from a polynomial function with a scalar input x and added noise. We plan to find the right value for K, from options of 1 to 10. The right value would optimize flexibily to the mdoel correctly fits the data.
 
-## Including Code
+We will now visualize these datasets to analyze any elementary differences and patterns. Note for each dataset we have a small traing set, large training set and test set. In the plot we have diffrentiated the data with the shape of the point and colour.
 
-You can include R code in the document as follows:
+## Generate and visualize data from 3 datasets
+```{r a, echo = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(readxl)
 
-```{r cars}
-summary(cars)
+trains1 = read.csv("Data\\Dataset_1 - small_train_1.csv")
+trainl1 = read.csv("Data\\Dataset_1 - large_train_1.csv")
+tst1 = read.csv("Data\\Dataset_1 - test_data_1.csv")
+
+trains2 = read.csv("Data\\Dataset_1 - small_train_2.csv")
+trainl2 = read.csv("Data\\Dataset_1 - large_train_2.csv")
+tst2 = read.csv("Data\\Dataset_1 - test_data_2.csv")
+
+trains3 = read.csv("Data\\Dataset_1 - small_train_3.csv")
+trainl3 = read.csv("Data\\Dataset_1 - large_train_3.csv")
+tst3 = read.csv("Data\\Dataset_1 - test_data_3.csv")
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r }
+ggplot(data = NULL, aes(x = x, y = y)) + 
+  geom_point(data = trains1, color= "blue", shape = 3) + 
+  geom_point(data = trainl1, color= "blue", shape = 3) + 
+  geom_point(data = tst1, color= "blue", shape = 3) +
+  geom_point(data = trains2, color= "green") + 
+  geom_point(data = trainl2, color= "green") + 
+  geom_point(data = tst2, color= "green") +
+  geom_point(data = trains3, color= "red", shape = 17) + 
+  geom_point(data = trainl3, color= "red", shape = 17) + 
+  geom_point(data = tst3, color= "red", shape = 17)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+We can see the data has noticeable differences in their trends. We will now create one polynomial regression model based on the first dataset. Here we will have K = 15 and 5.
+
+## Step 2: Practice Polreg
+```{r}
+# Visualize data
+ggplot(data = NULL, aes(x = x, y = y)) + 
+  geom_point(data = trains1, color= "blue") + 
+  geom_point(data = trainl1, color= "green") + 
+  geom_point(data = tst1, color= "red") +
+  stat_smooth(data = trainl1, method = "lm", formula = y ~ poly(x, 15, raw = TRUE), se=FALSE, color = "green") +
+  stat_smooth(data = trainl1, method = "lm", formula = y ~ poly(x, 5, raw = TRUE), se=FALSE, color = "blue")
+```
+
+The warmup is over. We now will display 3 models for each dataset. These models have been choosen because they have interesting shapes and Errors, which we will analyze further. We will also display the Training and Testing errors for all 10 models for each dataset, and graph the Error against K to assess overfitting.
+
+## Compare model fits for K = 1, 2, 9  for dataset1
+
+```{r, fig.width=10,fig.height=5}
+library(cowplot)
+plot1 <- ggplot(data = NULL, aes(x = x, y = y)) + 
+  geom_point(data = trains1, color= "blue") + 
+  geom_point(data = trainl1, color= "green") + 
+  geom_point(data = tst1, color= "red") +
+  stat_smooth(data = trainl1, method = "lm", formula = y ~ poly(x, 1, raw = TRUE), se=FALSE, color = "green") +
+  stat_smooth(data = trains1, method = "lm", formula = y ~ poly(x, 1, raw = TRUE), se=FALSE, color = "blue")
+  ggtitle(paste("d=",1))
+  
+plot2 <- ggplot(data = NULL, aes(x = x, y = y)) + 
+  geom_point(data = trains1, color= "blue") + 
+  geom_point(data = trainl1, color= "green") + 
+  geom_point(data = tst1, aes(y = tst1$y, color= "TestData")) +
+  stat_smooth(data = trainl1, method = "lm", formula = y ~ poly(x, 2, raw = TRUE), se=FALSE, aes(y = y, color = "LargeDataSet")) +
+  stat_smooth(data = trains1, method = "lm", formula = y ~ poly(x, 2, raw = TRUE), se=FALSE, aes(y = y, color = "SmallDataSet")) +
+  scale_colour_manual("", breaks = c("LargeDataSet", "SmallDataSet", "TestData"), values = c("green", "blue", "red")) +
+  theme(legend.position = "bottom")
+  ggtitle(paste("d=",2))
+
+plot3 <- ggplot(data = NULL, aes(x = x, y = y)) + 
+  geom_point(data = trains1, color= "blue") + 
+  geom_point(data = trainl1, color= "green") + 
+  geom_point(data = tst1, color= "red") +
+  stat_smooth(data = trainl1, method = "lm", formula = y ~ poly(x, 9, raw = TRUE), se=FALSE, color = "green") +
+  stat_smooth(data = trains1, method = "lm", formula = y ~ poly(x, 9, raw = TRUE), se=FALSE, color = "blue")
+  ggtitle(paste("d=",9))
+
+plot_grid(plot1, plot2, plot3, labels = c("1", "2", "9"), ncol=3)
+```
+
+## Compare MSE for different values of K from 1:10 for dataset1 for small
+```{r}
+mse_train <- c()
+mse_test <- c()
+for (d in 1:10){
+  model <- lm(y ~ poly(x, d, raw = TRUE), data = trains1)
+  train_fit <- model %>% predict(trains1)
+  train_mse <- mean((trains1$y-train_fit)^2)
+  mse_train[d] <- train_mse
+  test_fit <- model %>% predict(tst1)
+  test_mse <- mean((tst1$y-test_fit)^2)
+  mse_test <- append(mse_test, test_mse)
+}
+mse_train
+mse_test
+```
+
+```{r}
+mse <- data.frame(
+  x = 1:length(mse_train),
+  y1 = mse_train,
+  y2 = mse_test
+)
+mse
+
+ggplot(mse, aes(x = x)) +
+  geom_line(aes(y = y1, color = "Train"), linetype = "solid") +
+  geom_line(aes(y = y2, color = "Test"), linetype = "solid") +
+  labs(
+    title = "MSE for different values of d",
+    x = "Degree of polynomial",
+    y = "MSE"
+  ) +
+  scale_color_manual(values = c("Train" = "blue", "Test" = "red")) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+```
+
+## Compare MSE for different values of K from 1:10 for dataset1 for large
+```{r}
+mse_train <- c()
+mse_test <- c()
+for (d in 1:10){
+  model <- lm(y ~ poly(x, d, raw = TRUE), data = trainl1)
+  train_fit <- model %>% predict(trainl1)
+  train_mse <- mean((trainl1$y-train_fit)^2)
+  mse_train[d] <- train_mse
+  test_fit <- model %>% predict(tst1)
+  test_mse <- mean((tst1$y-test_fit)^2)
+  mse_test <- append(mse_test, test_mse)
+}
+mse_train
+mse_test
+```
+
+```{r}
+mse <- data.frame(
+  x = 1:length(mse_train),
+  y1 = mse_train,
+  y2 = mse_test
+)
+mse
+
+ggplot(mse, aes(x = x)) +
+  geom_line(aes(y = y1, color = "Train"), linetype = "solid") +
+  geom_line(aes(y = y2, color = "Test"), linetype = "solid") +
+  labs(
+    title = "MSE for different values of d",
+    x = "Degree of polynomial",
+    y = "MSE"
+  ) +
+  scale_color_manual(values = c("Train" = "blue", "Test" = "red")) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+```
+
+## Compare model fits for K = 1, 5, 10  for dataset2
+
+```{r, fig.width=10,fig.height=5}
+library(cowplot)
+plot1 <- ggplot(data = NULL, aes(x = x, y = y)) + 
+  geom_point(data = trains2, color= "blue") + 
+  geom_point(data = trainl2, color= "green") + 
+  geom_point(data = tst2, color= "red") +
+  stat_smooth(data = trainl2, method = "lm", formula = y ~ poly(x, 1, raw = TRUE), se=FALSE, color = "green") +
+  stat_smooth(data = trains2, method = "lm", formula = y ~ poly(x, 1, raw = TRUE), se=FALSE, color = "blue")
+  ggtitle(paste("d=",1))
+  
+plot2 <- ggplot(data = NULL, aes(x = x, y = y)) + 
+  geom_point(data = trains2, color= "blue") + 
+  geom_point(data = trainl2, color= "green") + 
+  geom_point(data = tst2, aes(y = tst1$y, color= "TestData")) +
+  stat_smooth(data = trainl2, method = "lm", formula = y ~ poly(x, 5, raw = TRUE), se=FALSE, aes(y = y, color = "LargeDataSet")) +
+  stat_smooth(data = trains2, method = "lm", formula = y ~ poly(x, 5, raw = TRUE), se=FALSE, aes(y = y, color = "SmallDataSet")) +
+  scale_colour_manual("", breaks = c("LargeDataSet", "SmallDataSet", "TestData"), values = c("green", "blue", "red")) +
+  theme(legend.position = "bottom")
+  ggtitle(paste("d=",2))
+
+plot3 <- ggplot(data = NULL, aes(x = x, y = y)) + 
+  geom_point(data = trains2, color= "blue") + 
+  geom_point(data = trainl2, color= "green") + 
+  geom_point(data = tst2, color= "red") +
+  stat_smooth(data = trainl2, method = "lm", formula = y ~ poly(x, 10, raw = TRUE), se=FALSE, color = "green") +
+  stat_smooth(data = trains2, method = "lm", formula = y ~ poly(x, 10, raw = TRUE), se=FALSE, color = "blue")
+  ggtitle(paste("d=",9))
+
+plot_grid(plot1, plot2, plot3, labels = c("1", "5", "10"), ncol=3)
+```
+
+## Compare MSE for different values of K from 1:10 for dataset2 for small
+```{r}
+mse_train <- c()
+mse_test <- c()
+for (d in 1:10){
+  model <- lm(y ~ poly(x, d, raw = TRUE), data = trains2)
+  train_fit <- model %>% predict(trains2)
+  train_mse <- mean((trains2$y-train_fit)^2)
+  mse_train[d] <- train_mse
+  test_fit <- model %>% predict(tst2)
+  test_mse <- mean((tst2$y-test_fit)^2)
+  mse_test <- append(mse_test, test_mse)
+}
+mse_train
+mse_test
+```
+
+```{r}
+mse <- data.frame(
+  x = 1:length(mse_train),
+  y1 = mse_train,
+  y2 = mse_test
+)
+mse
+
+ggplot(mse, aes(x = x)) +
+  geom_line(aes(y = y1, color = "Train"), linetype = "solid") +
+  geom_line(aes(y = y2, color = "Test"), linetype = "solid") +
+  labs(
+    title = "MSE for different values of d",
+    x = "Degree of polynomial",
+    y = "MSE"
+  ) +
+  scale_color_manual(values = c("Train" = "blue", "Test" = "red")) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+```
+
+## Compare MSE for different values of K from 1:10 for dataset2 for large
+```{r}
+mse_train <- c()
+mse_test <- c()
+for (d in 1:10){
+  model <- lm(y ~ poly(x, d, raw = TRUE), data = trainl2)
+  train_fit <- model %>% predict(trainl2)
+  train_mse <- mean((trainl2$y-train_fit)^2)
+  mse_train[d] <- train_mse
+  test_fit <- model %>% predict(tst2)
+  test_mse <- mean((tst2$y-test_fit)^2)
+  mse_test <- append(mse_test, test_mse)
+}
+mse_train
+mse_test
+```
+
+```{r}
+mse <- data.frame(
+  x = 1:length(mse_train),
+  y1 = mse_train,
+  y2 = mse_test
+)
+mse
+
+ggplot(mse, aes(x = x)) +
+  geom_line(aes(y = y1, color = "Train"), linetype = "solid") +
+  geom_line(aes(y = y2, color = "Test"), linetype = "solid") +
+  labs(
+    title = "MSE for different values of d",
+    x = "Degree of polynomial",
+    y = "MSE"
+  ) +
+  scale_color_manual(values = c("Train" = "blue", "Test" = "red")) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+```
+
+
+## Compare model fits for K = 1, 4, 10  for dataset3
+
+```{r, fig.width=10,fig.height=5}
+library(cowplot)
+plot1 <- ggplot(data = NULL, aes(x = x, y = y)) + 
+  geom_point(data = trains3, color= "blue") + 
+  geom_point(data = trainl3, color= "green") + 
+  geom_point(data = tst3, color= "red") +
+  stat_smooth(data = trainl3, method = "lm", formula = y ~ poly(x, 1, raw = TRUE), se=FALSE, color = "green") +
+  stat_smooth(data = trains3, method = "lm", formula = y ~ poly(x, 1, raw = TRUE), se=FALSE, color = "blue")
+  ggtitle(paste("d=",1))
+  
+plot2 <- ggplot(data = NULL, aes(x = x, y = y)) + 
+  geom_point(data = trains3, color= "blue") + 
+  geom_point(data = trainl3, color= "green") + 
+  geom_point(data = tst3, aes(y = tst1$y, color= "TestData")) +
+  stat_smooth(data = trainl3, method = "lm", formula = y ~ poly(x, 4, raw = TRUE), se=FALSE, aes(y = y, color = "LargeDataSet")) +
+  stat_smooth(data = trains3, method = "lm", formula = y ~ poly(x, 4, raw = TRUE), se=FALSE, aes(y = y, color = "SmallDataSet")) +
+  scale_colour_manual("", breaks = c("LargeDataSet", "SmallDataSet", "TestData"), values = c("green", "blue", "red")) +
+  theme(legend.position = "bottom")
+  ggtitle(paste("d=",2))
+
+plot3 <- ggplot(data = NULL, aes(x = x, y = y)) + 
+  geom_point(data = trains3, color= "blue") + 
+  geom_point(data = trainl3, color= "green") + 
+  geom_point(data = tst3, color= "red") +
+  stat_smooth(data = trainl3, method = "lm", formula = y ~ poly(x, 10, raw = TRUE), se=FALSE, color = "green") +
+  stat_smooth(data = trains3, method = "lm", formula = y ~ poly(x, 10, raw = TRUE), se=FALSE, color = "blue")
+  ggtitle(paste("d=",9))
+
+plot_grid(plot1, plot2, plot3, labels = c("1", "4", "10"), ncol=3)
+```
+
+## Compare MSE for different values of K from 1:10 for dataset3 for small
+```{r}
+mse_train <- c()
+mse_test <- c()
+for (d in 1:10){
+  model <- lm(y ~ poly(x, d, raw = TRUE), data = trains3)
+  train_fit <- model %>% predict(trains3)
+  train_mse <- mean((trains3$y-train_fit)^2)
+  mse_train[d] <- train_mse
+  test_fit <- model %>% predict(tst3)
+  test_mse <- mean((tst3$y-test_fit)^2)
+  mse_test <- append(mse_test, test_mse)
+}
+mse_train
+mse_test
+```
+
+```{r}
+mse <- data.frame(
+  x = 1:length(mse_train),
+  y1 = mse_train,
+  y2 = mse_test
+)
+mse
+
+ggplot(mse, aes(x = x)) +
+  geom_line(aes(y = y1, color = "Train"), linetype = "solid") +
+  geom_line(aes(y = y2, color = "Test"), linetype = "solid") +
+  labs(
+    title = "MSE for different values of d",
+    x = "Degree of polynomial",
+    y = "MSE"
+  ) +
+  scale_color_manual(values = c("Train" = "blue", "Test" = "red")) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+```
+
+## Compare MSE for different values of d from 1:10 for dataset3 for large
+```{r}
+mse_train <- c()
+mse_test <- c()
+for (d in 1:10){
+  model <- lm(y ~ poly(x, d, raw = TRUE), data = trainl3)
+  train_fit <- model %>% predict(trainl3)
+  train_mse <- mean((trainl3$y-train_fit)^2)
+  mse_train[d] <- train_mse
+  test_fit <- model %>% predict(tst3)
+  test_mse <- mean((tst3$y-test_fit)^2)
+  mse_test <- append(mse_test, test_mse)
+}
+mse_train
+mse_test
+```
+
+```{r}
+mse <- data.frame(
+  x = 1:length(mse_train),
+  y1 = mse_train,
+  y2 = mse_test
+)
+mse
+
+ggplot(mse, aes(x = x)) +
+  geom_line(aes(y = y1, color = "Train"), linetype = "solid") +
+  geom_line(aes(y = y2, color = "Test"), linetype = "solid") +
+  labs(
+    title = "MSE for different values of d",
+    x = "Degree of polynomial",
+    y = "MSE"
+  ) +
+  scale_color_manual(values = c("Train" = "blue", "Test" = "red")) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+```
+
+## Analysis
+
+For each dataset, we have found a value for K that optimizes the flexibility so that test error is minimized. 
+
+For the first dataset, **K = 2** optimizes the flexibility.
+
+For the third dataset, **K = 4** optimizes the flexibility.
+
+For the second dataset, **K = 5** optimizes the flexibility.
+
+We see at each of these values the test Error curves are minimized and training error is low.
+
+For the smaller data one noticable difference is a greater amount of variability in the smaller dataset, which causes much more variance in the models and higher error.
+
+**K = 1** always underfit the data and **K = 10** always overfit the data.
+
+## Appendix
+
+```{r, ref.label = 'a', eval = FALSE}
+```
