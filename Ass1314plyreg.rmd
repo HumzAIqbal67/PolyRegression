@@ -2,7 +2,6 @@
 title: "Polynomial Regression Modeling"
 output: html_document
 name: Humza Iqbal
-Student-Number: "1008169321"
 date: '2023-09-29'
 ---
 
