@@ -1,3 +1,2 @@
 # PolynomialReg
-[For more info Visit
-](https://humzaiqbal67.github.io/)https://humzaiqbal67.github.io/
+For more info Visit this [site](https://humzaiqbal67.github.io/PolyRegression/).
